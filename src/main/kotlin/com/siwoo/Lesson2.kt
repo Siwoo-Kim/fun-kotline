@@ -1,6 +1,7 @@
 package com.siwoo
 
 import java.io.Serializable
+import java.nio.file.Paths
 import java.time.Instant
 
 
@@ -205,14 +206,234 @@ fun functionExtension() {
 
 fun <T> List<T>.length() = this.size
 
+/**
+ * non-nullable & nullable
+ *  nullable 은 non-nullable 의 자식 타입.
+ *  
+ * non-nullable 의 참조 연산
+ *   non-nullable 은 참조 연산을 하지 못함.
+ *   if (e != null) e else null 식으로 사용해야 됨.
+ *   
+ * safe call (안전 호출)
+ *  e?.length => null 일 경우, null 을 반환
+ *  연쇄 호출 가능.
+ *  
+ *  obj?.obj?.obj?
+ *  
+ * 엘비스 연산자와 default value.
+ *  ?: 연산자로 기본 값 지정.
+ *  
+ */
+data class Company(var manager: Manager?)
+data class Manager(var address: Address?)
+data class Address(var city: City?)
+data class City(var name: String?)
+
+fun nullTest() {
+    val x: Int = 3
+    val y: Int? = x
+//    val x: Int? = 3
+//    val y: Int = x
+    
+    val s: String? = someFun()
+    val l = s?.length ?: -1
+    println(l)
+    
+    val city = City("Toronto")
+    val address = Address(city)
+    val manager = Manager(address)
+    val company: Company? = Company(manager)
+    
+    company?.manager = null
+    
+    var cityNullable = company?.manager?.address?.city ?: "unknown"  //Toronto
+    println(cityNullable)
+}
+
+fun someFun(): String? {
+    return null
+}
+
+/**
+ * 다중 비교 구문
+ * 
+ *  switch 대신 when 을 사용
+ *  break 가 필요없음.
+ *  가능한 모든 경우를 다 체크해야 된다.
+ *  
+ * when(o) {
+ *      match1 -> value
+ *      match2 -> value
+ *      else -> value
+ *  }
+ */
+fun noSwitchButWhen() {
+    val country = "Korea"
+    
+    val capital = when (country) {
+        "Korea" -> "Seoul"
+        "Canada" -> "Toronto"
+        "Japan" -> "Tokyo"
+        else -> "Unknown"
+    }
+    println(capital)
+    
+    println(when {
+        country == "Korea" -> "Seoul"
+        country == "Canada" -> "Toronto"
+        country == "Japan" -> "Tokyo"
+        else -> "Unknown"
+    })
+}
+
+
+/**
+ * 
+ * 인덱스 루프.
+ * 
+ * until
+ *  -> 증가, end 값 포함하지 않음
+ * ..
+ *  -> 증가, end 값 포함
+ * downTo
+ *  -> 감소, end 값 포함
+ *  1. for (i in 0 until N step 2)
+ *      pinrtln(i)
+ *      
+ *  2. val range = 0 until N step 2 (IntProgression)
+ */
+fun loop() {
+    val N = 10
+    for (i in 0 until N step 2)
+        println(i)
+    val range = 0 until N step 2
+    for (i in range) println(i)
+    for (i in 10 downTo 0)
+        println(i)
+}
+
+/**
+ * Closeable 과 use
+ *   리소스의 close 처리를 위해서 try 대신 use 을 사용.
+ *   
+ *   use {  //it = FileInputStream
+ *      
+ *   }
+ *   
+ */
+fun closeable() {
+    Paths.get("./README.md").toFile()
+        .inputStream()
+        .use {
+            it.bufferedReader().lineSequence().forEach(::println)
+        }
+    
+    val lines: List<String> = Paths.get("./README.md").toFile()
+        .inputStream()
+        .use { 
+            it.bufferedReader().lineSequence().toList()
+        }
+    lines.forEach(::println)
+}
+
+/**
+ * 스마트 캐스팅 (smart cast)
+ *  
+ *  스마트 캐스팅 if
+ *  if (o is Type)
+ *     // o use as given Type
+ *  
+ *  스마트 캐스팅 when
+ *  when (o) {
+ *      is [type] ->    ...
+ *      is [type] ->    ...
+ *      else -> ...
+ *  }
+ *  
+ *  강제 캐스팅 as
+ *      o as [Type]
+ *      
+ *  안전한 캐스팅 as?
+ *      o as? [Type]
+ *          => 타입 변환이 실패하면 null 을 리턴.
+ *          
+ *  동등성과 동일성
+ *      ==, !=  동등성
+ *      ===, !== 동일성
+ */
+fun casting() {
+    val o: Any = "test"
+    
+    val length = if (o is String) o.length else -1
+    println(length)
+    
+    println(
+        when (o) {
+            is String -> o.length
+            else -> -1
+        }
+    )
+    
+    val casted: String = o as String
+    println(casted)
+}
+
+/**
+ * covariance 과 in & out
+ *  제네릭에서 A 가 B 의 부모 타입이라 하더라도
+ *  List<A> 와 List<B> 은 아무 관계가 없다.
+ * 
+ * 언어적 환경 무공변성 때문에 이러한 제네렉 메서드를 작성시 제한전이 많다.
+ * 제네릭 메서드에서 타입 안정성을 지키기 위해 out, in 을 사용.
+ * 
+ * out = 공성
+ *  A 가 B 의 부모일때, List<A> 가 List<B> 도 부모.
+ *  out 을 사용하여 List<out T> 을 할당해도 안전한 이유는
+ *  T 에 대해서 출력만 할 것이기 때문.
+ */
+
+fun <T> addAll(left: MutableList<T>, right: MutableList<out T>) {
+    for (e in right)
+        left.add(e)
+}
+
+open class MyParent
+class MyChild: MyParent()
+
+interface Bag<out T> {
+    fun get(): T
+}
+
+class BagImpl: Bag<MyChild> {
+    override fun get(): MyChild = MyChild()
+}
+
+fun covariance() {
+    val s = "A String"
+    val a: Any = s  //co variance
+
+    val ls = mutableListOf("s")
+    val la: MutableList<Any> = mutableListOf()
+    addAll(la, ls)
+    
+    val bag: Bag<MyParent> = BagImpl()
+}
+
 fun main(args: Array<String>) {
-    fieldAndVariable()
+//    fieldAndVariable()
+//
+//    val person = Person("siwoo")
+//    println(person.name)    //getter
+//    person.show()
+//    collection()
+//
+//    println(sumOfPrimes(10))
+//    functionExtension()
     
-    val person = Person("siwoo")
-    println(person.name)    //getter
-    person.show()
-    collection()
+    nullTest()
+    noSwitchButWhen()
+    loop()
     
-    println(sumOfPrimes(10))
-    functionExtension()
+    closeable()
+    casting()
 }
